@@ -1,0 +1,1082 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Grafik Çizim Kontrol Uygulaması</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#061225;color:#EAF6FF;font-family:'Segoe UI',system-ui,-apple-system,sans-serif;min-height:100vh;overflow-x:hidden}
+  .app{max-width:1100px;margin:0 auto;padding:24px}
+
+  /* Header */
+  .header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px}
+  .header-left{display:flex;align-items:center;gap:14px}
+  .header-icon{width:46px;height:46px;border-radius:16px;background:rgba(79,195,247,.15);display:flex;align-items:center;justify-content:center}
+  .header-icon svg{width:22px;height:22px;stroke:#4FC3F7;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+  .header h1{font-size:1.5rem;font-weight:900;color:#EAF6FF;line-height:1.2}
+  .header p{font-size:.8rem;color:#5a7a9a;margin-top:2px}
+
+  /* Progress bar */
+  .progress-bar{display:flex;align-items:center;gap:10px}
+  .progress-dots{display:flex;gap:6px}
+  .pdot{width:12px;height:12px;border-radius:50%;border:2px solid #1a3a5c;transition:all .3s}
+  .pdot.correct{background:#22C55E;border-color:#22C55E}
+  .pdot.wrong{background:#EF4444;border-color:#EF4444}
+  .pdot.skipped{background:#F59E0B;border-color:#F59E0B}
+  .pdot.current{border-color:#4FC3F7;box-shadow:0 0 8px rgba(79,195,247,.5)}
+  .progress-text{font-size:.8rem;color:#5a7a9a;white-space:nowrap}
+
+  /* Layout */
+  .layout{display:grid;grid-template-columns:1fr 330px;gap:24px}
+  @media(max-width:860px){.layout{grid-template-columns:1fr}}
+
+  /* Graph Card */
+  .graph-card{background:#07182D;border:1px solid rgba(79,195,247,.15);border-radius:24px;padding:20px;box-shadow:0 8px 32px rgba(0,0,0,.4)}
+  .graph-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+  .graph-top h2{font-size:1.05rem;font-weight:700}
+  .graph-top h2 span{color:#4FC3F7}
+  .point-badge{font-size:.72rem;color:#4a6a8a;background:#0B1F3A;padding:4px 12px;border-radius:20px}
+
+  .canvas-wrap{position:relative;border-radius:16px;overflow:hidden;background:#0B1F3A;cursor:crosshair;touch-action:none;user-select:none}
+  .canvas-wrap svg{display:block;width:100%}
+
+  /* Buttons */
+  .btn-row{display:flex;justify-content:center;gap:12px;margin-top:16px;flex-wrap:wrap}
+  .btn{display:flex;align-items:center;gap:8px;border:none;border-radius:16px;padding:10px 20px;font-size:.85rem;font-weight:700;cursor:pointer;transition:all .15s}
+  .btn svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+  .btn-clear{background:rgba(255,255,255,.07);color:#D1D9E6;border:1px solid rgba(255,255,255,.12)}
+  .btn-clear:hover{background:rgba(255,255,255,.14)}
+  .btn-check{background:#4FC3F7;color:#061225;box-shadow:0 4px 20px rgba(79,195,247,.25)}
+  .btn-check:hover{filter:brightness(1.1)}
+  .btn-next{background:#22C55E;color:#fff;box-shadow:0 4px 16px rgba(34,197,94,.25)}
+  .btn-next:hover{filter:brightness(1.1)}
+  .btn-skip{background:rgba(245,158,11,.15);color:#F59E0B;border:1px solid rgba(245,158,11,.3)}
+  .btn-skip:hover{background:rgba(245,158,11,.25)}
+  .btn:active{transform:scale(.96)}
+  .btn:disabled{opacity:.4;cursor:not-allowed;transform:none}
+  .hidden{display:none!important}
+
+  /* Side Panels */
+  .side{display:flex;flex-direction:column;gap:16px}
+  .panel{border-radius:24px;padding:18px;backdrop-filter:blur(12px)}
+  .panel-criteria{background:rgba(30,58,95,.55);border:1px solid rgba(79,195,247,.18)}
+  .panel-criteria h3{display:flex;align-items:center;gap:8px;color:#4FC3F7;font-size:1rem;font-weight:900;margin-bottom:10px}
+  .panel-criteria h3 svg{width:18px;height:18px;stroke:#4FC3F7;fill:none;stroke-width:2}
+  .criteria-list{list-style:none;display:flex;flex-direction:column;gap:8px}
+  .criteria-list li{font-size:.82rem;color:#D1D9E6;display:flex;gap:8px}
+  .criteria-list li .dot{color:#4FC3F7;font-weight:700}
+
+  .panel-result{border:1px solid rgba(255,255,255,.08);background:rgba(30,58,95,.4);transition:all .4s ease}
+  .panel-result.ok{border-color:rgba(52,211,153,.35);background:rgba(16,185,129,.08)}
+  .panel-result.fail{border-color:rgba(248,113,113,.35);background:rgba(239,68,68,.08)}
+  .result-header{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+  .result-header svg{width:22px;height:22px;stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round}
+  .result-header h3{font-size:1rem;font-weight:900}
+  .result-msg{font-size:.82rem;color:#D1D9E6;line-height:1.55}
+
+  /* Attempts badge */
+  .attempts-info{font-size:.75rem;color:#6a8aaa;margin-top:8px;display:flex;align-items:center;gap:6px}
+  .attempts-info .heart{color:#EF4444}
+
+  .panel-note{background:rgba(11,31,58,.5);border:1px solid rgba(255,255,255,.06);padding:14px}
+  .panel-note p{font-size:.73rem;color:#5a7a9a;line-height:1.6}
+  .panel-note b{color:#4FC3F7}
+
+  /* ======= ANALYSIS SCREEN ======= */
+  .analysis-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(6,18,37,.95);z-index:100;overflow-y:auto;display:none}
+  .analysis-overlay.show{display:block}
+  .analysis{max-width:900px;margin:0 auto;padding:32px 24px}
+  .analysis h1{font-size:1.8rem;font-weight:900;color:#EAF6FF;margin-bottom:8px;text-align:center}
+  .analysis .subtitle{text-align:center;color:#5a7a9a;font-size:.9rem;margin-bottom:32px}
+
+  /* Score circle */
+  .score-section{display:flex;justify-content:center;margin-bottom:36px}
+  .score-circle{width:140px;height:140px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;border:4px solid #4FC3F7;background:rgba(79,195,247,.08)}
+  .score-circle .num{font-size:2.5rem;font-weight:900;color:#4FC3F7}
+  .score-circle .den{font-size:.85rem;color:#6a8aaa}
+
+  /* Stats row */
+  .stats-row{display:flex;justify-content:center;gap:24px;margin-bottom:36px;flex-wrap:wrap}
+  .stat-card{background:#07182D;border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:16px 24px;text-align:center;min-width:120px}
+  .stat-card .val{font-size:1.6rem;font-weight:900}
+  .stat-card .label{font-size:.75rem;color:#6a8aaa;margin-top:4px}
+  .stat-green .val{color:#22C55E}
+  .stat-red .val{color:#EF4444}
+  .stat-yellow .val{color:#F59E0B}
+
+  /* Question breakdown */
+  .breakdown{margin-bottom:36px}
+  .breakdown h2{font-size:1.15rem;font-weight:900;color:#EAF6FF;margin-bottom:16px;display:flex;align-items:center;gap:8px}
+  .breakdown-list{display:flex;flex-direction:column;gap:10px}
+  .bq{background:#07182D;border:1px solid rgba(255,255,255,.06);border-radius:16px;padding:14px 18px;display:flex;align-items:center;gap:14px}
+  .bq-icon{width:32px;height:32px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:.9rem;font-weight:900;flex-shrink:0}
+  .bq-icon.ok{background:rgba(34,197,94,.15);color:#22C55E}
+  .bq-icon.fail{background:rgba(239,68,68,.15);color:#EF4444}
+  .bq-icon.skip{background:rgba(245,158,11,.15);color:#F59E0B}
+  .bq-info{flex:1}
+  .bq-info .bq-fn{font-size:.85rem;font-weight:700;color:#EAF6FF}
+  .bq-info .bq-topic{font-size:.75rem;color:#6a8aaa;margin-top:2px}
+  .bq-status{font-size:.75rem;font-weight:700;padding:4px 10px;border-radius:10px}
+  .bq-status.ok{background:rgba(34,197,94,.12);color:#22C55E}
+  .bq-status.fail{background:rgba(239,68,68,.12);color:#EF4444}
+  .bq-status.skip{background:rgba(245,158,11,.12);color:#F59E0B}
+
+  /* Study recommendations */
+  .recs{margin-bottom:36px}
+  .recs h2{font-size:1.15rem;font-weight:900;color:#EAF6FF;margin-bottom:16px;display:flex;align-items:center;gap:8px}
+  .rec-card{background:#07182D;border:1px solid rgba(79,195,247,.12);border-radius:20px;padding:18px;margin-bottom:12px}
+  .rec-card h3{font-size:.95rem;font-weight:800;color:#4FC3F7;margin-bottom:8px;display:flex;align-items:center;gap:8px}
+  .rec-card ul{list-style:none;display:flex;flex-direction:column;gap:6px}
+  .rec-card li{font-size:.82rem;color:#D1D9E6;display:flex;gap:8px;align-items:flex-start}
+  .rec-card li a{color:#4FC3F7;text-decoration:underline;text-underline-offset:2px}
+  .rec-card li a:hover{color:#81D4FA}
+  .rec-card .source{font-size:.7rem;color:#4a6a8a;margin-top:8px}
+
+  /* Restart button */
+  .restart-row{text-align:center;margin-top:24px;margin-bottom:48px}
+  .btn-restart{background:#4FC3F7;color:#061225;font-size:1rem;font-weight:900;border:none;border-radius:20px;padding:14px 40px;cursor:pointer;transition:all .15s}
+  .btn-restart:hover{filter:brightness(1.1)}
+  .btn-restart:active{transform:scale(.96)}
+
+  /* Sound toggle */
+  .sound-toggle{position:fixed;bottom:20px;right:20px;z-index:200;width:44px;height:44px;border-radius:50%;background:#0B1F3A;border:1px solid rgba(79,195,247,.2);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s}
+  .sound-toggle:hover{background:#1E3A5F}
+  .sound-toggle svg{width:20px;height:20px;stroke:#4FC3F7;fill:none;stroke-width:2}
+</style>
+</head>
+<body>
+
+<!-- Sound toggle -->
+<div class="sound-toggle" id="soundToggle" title="Ses aç/kapat">
+  <svg id="soundIcon"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+</div>
+
+<div class="app" id="app">
+  <!-- Header -->
+  <div class="header">
+    <div class="header-left">
+      <div class="header-icon">
+        <svg><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>
+      </div>
+      <div>
+        <h1>Grafik Çizim Kontrolü</h1>
+        <p>Yapay zekâ destekli grafik değerlendirme</p>
+      </div>
+    </div>
+    <div class="progress-bar">
+      <div class="progress-dots" id="progressDots"></div>
+      <span class="progress-text" id="progressText">1/10</span>
+    </div>
+  </div>
+
+  <!-- Layout -->
+  <div class="layout">
+    <!-- Left: Graph -->
+    <div class="graph-card">
+      <div class="graph-top">
+        <h2>Çiz: <span id="questionLabel">y = x² − 4x + 3</span></h2>
+        <span class="point-badge" id="pointCount">0 nokta</span>
+      </div>
+      <div class="canvas-wrap">
+        <svg id="canvas" viewBox="0 0 500 400" preserveAspectRatio="xMidYMid meet"></svg>
+      </div>
+      <div class="btn-row" id="btnRow">
+        <button class="btn btn-clear" id="btnClear">
+          <svg><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+          Temizle
+        </button>
+        <button class="btn btn-check" id="btnCheck">
+          <svg><path d="M12 3l1.5 4.5H18l-3.5 2.5L16 14.5 12 11.5 8 14.5l1.5-4.5L6 7.5h4.5z"/></svg>
+          Kontrol Et
+        </button>
+        <button class="btn btn-next hidden" id="btnNext">
+          <svg><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
+          Sonraki Soru
+        </button>
+        <button class="btn btn-skip hidden" id="btnSkip">
+          <svg><path d="M13 5l7 7-7 7"/><path d="M5 5l7 7-7 7"/></svg>
+          Soruyu Geç
+        </button>
+      </div>
+    </div>
+
+    <!-- Right: Info -->
+    <div class="side">
+      <div class="panel panel-criteria">
+        <h3>
+          <svg><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+          Kontrol Kriterleri
+        </h3>
+        <ul class="criteria-list" id="criteriaList"></ul>
+      </div>
+
+      <div class="panel panel-result" id="resultPanel">
+        <div class="result-header">
+          <h3 id="resultTitle">Sonuç bekleniyor</h3>
+        </div>
+        <p class="result-msg" id="resultMsg">Grafiği çizdikten sonra "Kontrol Et" butonuna bas.</p>
+        <div class="attempts-info" id="attemptsInfo">
+          <span class="heart">♥</span> <span id="attemptsText">Kalan hak: 3</span>
+        </div>
+      </div>
+
+      <div class="panel panel-note">
+        <p><b>İpucu:</b> Serbest çiz — birebir aynı olması gerekmiyor. Genel şekil doğruysa kabul edilir.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Analysis overlay -->
+<div class="analysis-overlay" id="analysisOverlay">
+  <div class="analysis" id="analysisContent"></div>
+</div>
+
+<script>
+(function(){
+  // ==================== SOUND ENGINE ====================
+  const AudioCtx = window.AudioContext || window.webkitAudioContext;
+  let audioCtx = null;
+  let soundEnabled = true;
+
+  function getCtx() {
+    if (!audioCtx) audioCtx = new AudioCtx();
+    return audioCtx;
+  }
+
+  function playTone(freq, dur, type, vol) {
+    if (!soundEnabled) return;
+    try {
+      const ctx = getCtx();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = type || 'sine';
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(vol || 0.12, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + dur);
+    } catch(e) {}
+  }
+
+  function sfxCorrect() {
+    playTone(523, 0.12, 'sine', 0.1);
+    setTimeout(() => playTone(659, 0.12, 'sine', 0.1), 100);
+    setTimeout(() => playTone(784, 0.2, 'sine', 0.12), 200);
+  }
+  function sfxWrong() {
+    playTone(220, 0.2, 'triangle', 0.08);
+    setTimeout(() => playTone(196, 0.3, 'triangle', 0.08), 150);
+  }
+  function sfxSkip() {
+    playTone(440, 0.1, 'sine', 0.06);
+    setTimeout(() => playTone(350, 0.15, 'sine', 0.06), 80);
+  }
+  function sfxNext() {
+    playTone(440, 0.08, 'sine', 0.08);
+    setTimeout(() => playTone(554, 0.08, 'sine', 0.08), 70);
+    setTimeout(() => playTone(659, 0.15, 'sine', 0.1), 140);
+  }
+  function sfxComplete() {
+    const notes = [523, 659, 784, 1047];
+    notes.forEach((n, i) => setTimeout(() => playTone(n, 0.25, 'sine', 0.1), i * 120));
+  }
+
+  // Sound toggle
+  const soundToggle = document.getElementById('soundToggle');
+  const soundIcon = document.getElementById('soundIcon');
+  soundToggle.addEventListener('click', () => {
+    soundEnabled = !soundEnabled;
+    soundIcon.innerHTML = soundEnabled
+      ? '<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>'
+      : '<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/>';
+  });
+
+  // ==================== QUESTION BANK ====================
+  // 10. sınıf MEB müfredatına uygun grafik çizme soruları
+  const QUESTIONS = [
+    {
+      id: 'q1',
+      fn: x => x*x - 4*x + 3,
+      label: 'y = x² − 4x + 3',
+      topic: 'İkinci Derece Fonksiyonlar',
+      subtopic: 'Parabol çizimi (yukarı açılan)',
+      domain: [-0.5, 4.5],
+      xRange: [-1, 5], yRange: [-2.5, 6.5],
+      criteria: [
+        'Parabol yukarı açılmalı (U şekli)',
+        'Tepe noktası ≈ (2, −1)',
+        'x eksenini ≈ 1 ve 3\'te kesmeli',
+        'y eksenini ≈ 3\'te kesmeli'
+      ],
+      annotations: [
+        { type: 'vertex', mx: 2, my: -1, label: 'Tepe (2, −1)' },
+        { type: 'root', mx: 1, my: 0, label: 'x=1' },
+        { type: 'root', mx: 3, my: 0, label: 'x=3' }
+      ],
+      shapeCheck: 'parabola_up',
+      tolerance: 1.2
+    },
+    {
+      id: 'q2',
+      fn: x => -x*x + 2*x + 3,
+      label: 'y = −x² + 2x + 3',
+      topic: 'İkinci Derece Fonksiyonlar',
+      subtopic: 'Parabol çizimi (aşağı açılan)',
+      domain: [-1.5, 3.5],
+      xRange: [-2, 4], yRange: [-3, 6],
+      criteria: [
+        'Parabol aşağı açılmalı (ters U şekli)',
+        'Tepe noktası ≈ (1, 4)',
+        'x eksenini ≈ −1 ve 3\'te kesmeli',
+        'y eksenini ≈ 3\'te kesmeli'
+      ],
+      annotations: [
+        { type: 'vertex', mx: 1, my: 4, label: 'Tepe (1, 4)' },
+        { type: 'root', mx: -1, my: 0, label: 'x=−1' },
+        { type: 'root', mx: 3, my: 0, label: 'x=3' }
+      ],
+      shapeCheck: 'parabola_down',
+      tolerance: 1.2
+    },
+    {
+      id: 'q3',
+      fn: x => 2*x - 3,
+      label: 'y = 2x − 3',
+      topic: 'Doğrusal Fonksiyonlar',
+      subtopic: 'Birinci derece fonksiyon grafiği',
+      domain: [-1, 4],
+      xRange: [-2, 5], yRange: [-5, 6],
+      criteria: [
+        'Düz bir doğru olmalı',
+        'Eğim pozitif (soldan sağa yukarı)',
+        'x eksenini ≈ 1.5\'te kesmeli',
+        'y eksenini ≈ −3\'te kesmeli'
+      ],
+      annotations: [
+        { type: 'root', mx: 1.5, my: 0, label: 'x=1.5' },
+        { type: 'point', mx: 0, my: -3, label: '(0,−3)' }
+      ],
+      shapeCheck: 'line_up',
+      tolerance: 0.8
+    },
+    {
+      id: 'q4',
+      fn: x => -x + 4,
+      label: 'y = −x + 4',
+      topic: 'Doğrusal Fonksiyonlar',
+      subtopic: 'Negatif eğimli doğru',
+      domain: [-1, 5.5],
+      xRange: [-2, 6], yRange: [-2, 6],
+      criteria: [
+        'Düz bir doğru olmalı',
+        'Eğim negatif (soldan sağa aşağı)',
+        'x eksenini ≈ 4\'te kesmeli',
+        'y eksenini ≈ 4\'te kesmeli'
+      ],
+      annotations: [
+        { type: 'root', mx: 4, my: 0, label: 'x=4' },
+        { type: 'point', mx: 0, my: 4, label: '(0, 4)' }
+      ],
+      shapeCheck: 'line_down',
+      tolerance: 0.8
+    },
+    {
+      id: 'q5',
+      fn: x => x*x,
+      label: 'y = x²',
+      topic: 'İkinci Derece Fonksiyonlar',
+      subtopic: 'Temel parabol',
+      domain: [-3, 3],
+      xRange: [-4, 4], yRange: [-2, 10],
+      criteria: [
+        'Parabol yukarı açılmalı',
+        'Tepe noktası ≈ (0, 0) orijinde',
+        'Simetrik olmalı',
+        'x=−2 ve x=2\'de y≈4 olmalı'
+      ],
+      annotations: [
+        { type: 'vertex', mx: 0, my: 0, label: 'Tepe (0, 0)' },
+        { type: 'point', mx: -2, my: 4, label: '(−2, 4)' },
+        { type: 'point', mx: 2, my: 4, label: '(2, 4)' }
+      ],
+      shapeCheck: 'parabola_up',
+      tolerance: 1.3
+    },
+    {
+      id: 'q6',
+      fn: x => Math.abs(x - 2),
+      label: 'y = |x − 2|',
+      topic: 'Mutlak Değer Fonksiyonları',
+      subtopic: 'Mutlak değer grafiği',
+      domain: [-1, 5],
+      xRange: [-2, 6], yRange: [-1, 5],
+      criteria: [
+        'V şekli olmalı',
+        'Sivri nokta ≈ (2, 0)\'da',
+        'Sol kol aşağı, sağ kol aşağı eğimli',
+        'Her iki kol da düz doğru'
+      ],
+      annotations: [
+        { type: 'vertex', mx: 2, my: 0, label: 'Köşe (2, 0)' },
+        { type: 'point', mx: 0, my: 2, label: '(0, 2)' },
+        { type: 'point', mx: 4, my: 2, label: '(4, 2)' }
+      ],
+      shapeCheck: 'v_shape',
+      tolerance: 0.9
+    },
+    {
+      id: 'q7',
+      fn: x => x*x*x / 4,
+      label: 'y = x³/4',
+      topic: 'Polinom Fonksiyonlar',
+      subtopic: 'Küpsel fonksiyon grafiği',
+      domain: [-2.5, 2.5],
+      xRange: [-3, 3], yRange: [-5, 5],
+      criteria: [
+        'S şeklinde olmalı',
+        'Orijinden geçmeli (0, 0)',
+        'Sol alt, sağ üst yönelimli',
+        'Negatif x\'te negatif, pozitif x\'te pozitif'
+      ],
+      annotations: [
+        { type: 'point', mx: 0, my: 0, label: '(0, 0)' },
+        { type: 'point', mx: 2, my: 2, label: '(2, 2)' },
+        { type: 'point', mx: -2, my: -2, label: '(−2, −2)' }
+      ],
+      shapeCheck: 'cubic',
+      tolerance: 1.0
+    },
+    {
+      id: 'q8',
+      fn: x => x*x - 1,
+      label: 'y = x² − 1',
+      topic: 'İkinci Derece Fonksiyonlar',
+      subtopic: 'Ötelenmiş parabol',
+      domain: [-2.5, 2.5],
+      xRange: [-3, 3], yRange: [-2.5, 6],
+      criteria: [
+        'Parabol yukarı açılmalı',
+        'Tepe noktası ≈ (0, −1)',
+        'x eksenini ≈ −1 ve 1\'de kesmeli',
+        'y eksenini ≈ −1\'de kesmeli'
+      ],
+      annotations: [
+        { type: 'vertex', mx: 0, my: -1, label: 'Tepe (0, −1)' },
+        { type: 'root', mx: -1, my: 0, label: 'x=−1' },
+        { type: 'root', mx: 1, my: 0, label: 'x=1' }
+      ],
+      shapeCheck: 'parabola_up',
+      tolerance: 1.2
+    },
+    {
+      id: 'q9',
+      fn: x => Math.abs(x) + 1,
+      label: 'y = |x| + 1',
+      topic: 'Mutlak Değer Fonksiyonları',
+      subtopic: 'Ötelenmiş mutlak değer',
+      domain: [-3.5, 3.5],
+      xRange: [-4, 4], yRange: [-1, 6],
+      criteria: [
+        'V şekli olmalı',
+        'Sivri nokta ≈ (0, 1)\'de',
+        'x eksenini kesmemeli (hep pozitif)',
+        'Simetrik olmalı'
+      ],
+      annotations: [
+        { type: 'vertex', mx: 0, my: 1, label: 'Köşe (0, 1)' },
+        { type: 'point', mx: -3, my: 4, label: '(−3, 4)' },
+        { type: 'point', mx: 3, my: 4, label: '(3, 4)' }
+      ],
+      shapeCheck: 'v_shape',
+      tolerance: 0.9
+    },
+    {
+      id: 'q10',
+      fn: x => (x - 1) * (x - 1) * (x + 1) / 2,
+      label: 'y = (x−1)²(x+1) / 2',
+      topic: 'Polinom Fonksiyonlar',
+      subtopic: 'Üçüncü derece polinom',
+      domain: [-2, 2.5],
+      xRange: [-2.5, 3], yRange: [-1.5, 4],
+      criteria: [
+        'x eksenini ≈ −1 ve 1\'de kesmeli',
+        'x=1\'de eksene teğet geçmeli',
+        'Sol tarafta negatif bölge olmalı',
+        'Genel kübik şekil'
+      ],
+      annotations: [
+        { type: 'root', mx: -1, my: 0, label: 'x=−1' },
+        { type: 'root', mx: 1, my: 0, label: 'x=1 (teğet)' },
+        { type: 'point', mx: 0, my: 0.5, label: '(0, 0.5)' }
+      ],
+      shapeCheck: 'custom',
+      tolerance: 1.0
+    }
+  ];
+
+  // ==================== STUDY RESOURCES ====================
+  const RESOURCES = {
+    'İkinci Derece Fonksiyonlar': {
+      meb: [
+        { text: 'MEB 10. Sınıf Matematik Ders Kitabı — Ünite 3: İkinci Derece Fonksiyonlar ve Grafikleri', note: 'Parabol çizimi, tepe noktası bulma, köklerin grafiksel anlamı' },
+        { text: 'EBA — İkinci Derece Denklemler ve Fonksiyonlar modülü', link: 'https://www.eba.gov.tr/' }
+      ],
+      khan: [
+        { text: 'Quadratic Functions & Equations', link: 'https://www.khanacademy.org/math/algebra/x2f8bb11595b61c86:quadratic-functions-equations' },
+        { text: 'Vertex Form of Parabolas', link: 'https://www.khanacademy.org/math/algebra/x2f8bb11595b61c86:quadratic-functions-equations/x2f8bb11595b61c86:vertex-form/v/graphing-a-parabola-using-roots-and-vertex' }
+      ],
+      topics: ['Parabol tepe noktası formülü', 'Diskriminant ve köklerin grafiği', 'a katsayısının parabolün açılış yönüne etkisi']
+    },
+    'Doğrusal Fonksiyonlar': {
+      meb: [
+        { text: 'MEB 9. Sınıf Matematik — Doğrusal Denklemler ve Grafikleri', note: 'Eğim-kesim noktası formu, doğrunun grafiği' },
+        { text: 'EBA — Doğrusal Fonksiyonlar interaktif dersleri', link: 'https://www.eba.gov.tr/' }
+      ],
+      khan: [
+        { text: 'Linear Equations & Graphs', link: 'https://www.khanacademy.org/math/algebra/x2f8bb11595b61c86:linear-equations-graphs' },
+        { text: 'Slope-Intercept Form', link: 'https://www.khanacademy.org/math/algebra/x2f8bb11595b61c86:linear-equations-graphs/x2f8bb11595b61c86:slope-intercept-form/v/slope-intercept-form' }
+      ],
+      topics: ['Eğim kavramı (m)', 'y-kesim noktası (b)', 'x-kesim noktası bulma']
+    },
+    'Mutlak Değer Fonksiyonları': {
+      meb: [
+        { text: 'MEB 10. Sınıf Matematik — Mutlak Değer', note: 'Mutlak değer fonksiyonunun grafiği ve dönüşümleri' },
+        { text: 'EBA — Mutlak Değer Fonksiyonu modülü', link: 'https://www.eba.gov.tr/' }
+      ],
+      khan: [
+        { text: 'Absolute Value Functions', link: 'https://www.khanacademy.org/math/algebra/x2f8bb11595b61c86:absolute-value-piecewise-functions' },
+        { text: 'Graphing Absolute Value', link: 'https://www.khanacademy.org/math/algebra/x2f8bb11595b61c86:absolute-value-piecewise-functions/x2f8bb11595b61c86:graphs-of-absolute-value-functions/v/absolute-value-function' }
+      ],
+      topics: ['V şekli ve köşe noktası', 'Öteleme ve yansıma', 'Mutlak değer denklemleri']
+    },
+    'Polinom Fonksiyonlar': {
+      meb: [
+        { text: 'MEB 10. Sınıf Matematik — Polinomlar', note: 'Polinom fonksiyonların grafikleri ve davranışları' },
+        { text: 'EBA — Polinomlar modülü', link: 'https://www.eba.gov.tr/' }
+      ],
+      khan: [
+        { text: 'Polynomial Functions', link: 'https://www.khanacademy.org/math/algebra2/x2ec2f6f830c9fb89:poly-graphs' },
+        { text: 'End Behavior of Polynomials', link: 'https://www.khanacademy.org/math/algebra2/x2ec2f6f830c9fb89:poly-graphs/x2ec2f6f830c9fb89:poly-end-behavior/v/polynomial-end-behavior' }
+      ],
+      topics: ['Kökler ve çarpanlara ayırma', 'Tek/çift katlı kökler', 'Fonksiyonun uç davranışı']
+    }
+  };
+
+  // ==================== GAME STATE ====================
+  const W = 500, H = 400;
+  let currentQ = 0;
+  let points = [];
+  let drawing = false;
+  let wrongAttempts = 0;
+  const MAX_WRONG = 3;
+  let questionResults = []; // { qIdx, status: 'correct'|'wrong'|'skipped', attempts }
+  let answered = false;
+
+  const svg = document.getElementById('canvas');
+  const ns = 'http://www.w3.org/2000/svg';
+  let userPathEl = null;
+  let correctPathEl = null;
+  let annotationEls = [];
+
+  // ==================== COORDINATE HELPERS ====================
+  function getQ() { return QUESTIONS[currentQ]; }
+  function toScreen(mx, my) {
+    const q = getQ();
+    return {
+      x: ((mx - q.xRange[0]) / (q.xRange[1] - q.xRange[0])) * W,
+      y: ((q.yRange[1] - my) / (q.yRange[1] - q.yRange[0])) * H
+    };
+  }
+  function toMath(sx, sy) {
+    const q = getQ();
+    return {
+      x: (sx / W) * (q.xRange[1] - q.xRange[0]) + q.xRange[0],
+      y: q.yRange[1] - (sy / H) * (q.yRange[1] - q.yRange[0])
+    };
+  }
+
+  function createSvg(tag, attrs) {
+    const el = document.createElementNS(ns, tag);
+    for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+    return el;
+  }
+
+  // ==================== DRAWING ====================
+  function drawGrid() {
+    // Clear SVG
+    svg.innerHTML = '';
+    userPathEl = null;
+    correctPathEl = null;
+    annotationEls = [];
+
+    const q = getQ();
+
+    // Grid lines
+    for (let mx = Math.ceil(q.xRange[0]); mx <= Math.floor(q.xRange[1]); mx++) {
+      const { x } = toScreen(mx, 0);
+      svg.appendChild(createSvg('line', { x1: x, y1: 0, x2: x, y2: H, stroke: '#1a3a5c', 'stroke-width': mx === 0 ? 1.5 : 0.4 }));
+    }
+    for (let my = Math.ceil(q.yRange[0]); my <= Math.floor(q.yRange[1]); my++) {
+      const { y } = toScreen(0, my);
+      svg.appendChild(createSvg('line', { x1: 0, y1: y, x2: W, y2: y, stroke: '#1a3a5c', 'stroke-width': my === 0 ? 1.5 : 0.4 }));
+    }
+
+    // Axes
+    const ox = toScreen(0, 0);
+    if (ox.y >= 0 && ox.y <= H) {
+      svg.appendChild(createSvg('line', { x1: 0, y1: ox.y, x2: W, y2: ox.y, stroke: '#4a6a8a', 'stroke-width': 1.8 }));
+      svg.appendChild(createSvg('polygon', { points: `${W-2},${ox.y} ${W-10},${ox.y-4} ${W-10},${ox.y+4}`, fill: '#4a6a8a' }));
+    }
+    if (ox.x >= 0 && ox.x <= W) {
+      svg.appendChild(createSvg('line', { x1: ox.x, y1: 0, x2: ox.x, y2: H, stroke: '#4a6a8a', 'stroke-width': 1.8 }));
+      svg.appendChild(createSvg('polygon', { points: `${ox.x},2 ${ox.x-4},10 ${ox.x+4},10`, fill: '#4a6a8a' }));
+    }
+
+    // Labels
+    for (let mx = Math.ceil(q.xRange[0]); mx <= Math.floor(q.xRange[1]); mx++) {
+      if (mx === 0) continue;
+      const { x } = toScreen(mx, 0);
+      const ly = Math.min(Math.max(ox.y + 16, 16), H - 4);
+      const t = createSvg('text', { x: x, y: ly, 'text-anchor': 'middle', fill: '#4a6a8a', 'font-size': '11px', 'font-family': 'system-ui' });
+      t.textContent = mx;
+      svg.appendChild(t);
+    }
+    for (let my = Math.ceil(q.yRange[0]); my <= Math.floor(q.yRange[1]); my++) {
+      if (my === 0) continue;
+      const { y } = toScreen(0, my);
+      const lx = Math.min(Math.max(ox.x - 8, 20), W - 8);
+      const t = createSvg('text', { x: lx, y: y + 4, 'text-anchor': 'end', fill: '#4a6a8a', 'font-size': '11px', 'font-family': 'system-ui' });
+      t.textContent = my;
+      svg.appendChild(t);
+    }
+
+    // Axis names
+    if (ox.y >= 0 && ox.y <= H) {
+      const xL = createSvg('text', { x: W - 14, y: ox.y - 10, fill: '#6a8aaa', 'font-size': '13px', 'font-weight': 'bold', 'font-family': 'system-ui' });
+      xL.textContent = 'x'; svg.appendChild(xL);
+    }
+    if (ox.x >= 0 && ox.x <= W) {
+      const yL = createSvg('text', { x: ox.x + 10, y: 16, fill: '#6a8aaa', 'font-size': '13px', 'font-weight': 'bold', 'font-family': 'system-ui' });
+      yL.textContent = 'y'; svg.appendChild(yL);
+    }
+
+    // Origin
+    if (ox.x > 10 && ox.x < W - 10 && ox.y > 10 && ox.y < H - 10) {
+      const z = createSvg('text', { x: ox.x - 10, y: ox.y + 16, 'text-anchor': 'end', fill: '#4a6a8a', 'font-size': '11px', 'font-family': 'system-ui' });
+      z.textContent = '0'; svg.appendChild(z);
+    }
+  }
+
+  function updateUserPath() {
+    if (!userPathEl) {
+      userPathEl = createSvg('path', { fill: 'none', stroke: '#FF6B6B', 'stroke-width': '2.8', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' });
+      svg.appendChild(userPathEl);
+    }
+    if (points.length < 2) { userPathEl.setAttribute('d', ''); return; }
+    userPathEl.setAttribute('d', 'M' + points.map(p => `${p.x},${p.y}`).join('L'));
+  }
+
+  function getCorrectPathD() {
+    const q = getQ();
+    let pts = [];
+    for (let sx = 0; sx <= W; sx += 2) {
+      const mp = toMath(sx, 0);
+      const my = q.fn(mp.x);
+      const sp = toScreen(mp.x, my);
+      if (sp.y >= -20 && sp.y <= H + 20) pts.push(`${sx},${sp.y}`);
+    }
+    return 'M' + pts.join('L');
+  }
+
+  function showCorrectCurve() {
+    if (correctPathEl) return;
+    const q = getQ();
+    correctPathEl = createSvg('path', { d: getCorrectPathD(), fill: 'none', stroke: '#22C55E', 'stroke-width': '2.2', 'stroke-dasharray': '10,5', opacity: '0.9' });
+    svg.appendChild(correctPathEl);
+
+    for (const ann of q.annotations) {
+      const sp = toScreen(ann.mx, ann.my);
+      const color = ann.type === 'vertex' ? '#4FC3F7' : '#22C55E';
+      const c = createSvg('circle', { cx: sp.x, cy: sp.y, r: ann.type === 'vertex' ? 7 : 5, fill: color, stroke: '#0B1F3A', 'stroke-width': 2 });
+      svg.appendChild(c); annotationEls.push(c);
+      const t = createSvg('text', { x: sp.x + 10, y: sp.y - 10, fill: color, 'font-size': '11px', 'font-weight': 'bold', 'font-family': 'system-ui' });
+      t.textContent = ann.label;
+      svg.appendChild(t); annotationEls.push(t);
+    }
+  }
+
+  function hideCorrectCurve() {
+    if (correctPathEl) { correctPathEl.remove(); correctPathEl = null; }
+    annotationEls.forEach(el => el.remove());
+    annotationEls = [];
+  }
+
+  // ==================== UI UPDATES ====================
+  function updateProgress() {
+    const dots = document.getElementById('progressDots');
+    dots.innerHTML = '';
+    for (let i = 0; i < QUESTIONS.length; i++) {
+      const dot = document.createElement('div');
+      dot.className = 'pdot';
+      if (i === currentQ) dot.classList.add('current');
+      const r = questionResults[i];
+      if (r) {
+        if (r.status === 'correct') dot.classList.add('correct');
+        else if (r.status === 'wrong') dot.classList.add('wrong');
+        else if (r.status === 'skipped') dot.classList.add('skipped');
+      }
+      dots.appendChild(dot);
+    }
+    document.getElementById('progressText').textContent = `${currentQ + 1}/${QUESTIONS.length}`;
+  }
+
+  function updateCriteria() {
+    const list = document.getElementById('criteriaList');
+    list.innerHTML = '';
+    for (const c of getQ().criteria) {
+      const li = document.createElement('li');
+      li.innerHTML = `<span class="dot">•</span> ${c}`;
+      list.appendChild(li);
+    }
+  }
+
+  function updateAttempts() {
+    const remaining = MAX_WRONG - wrongAttempts;
+    document.getElementById('attemptsText').textContent = `Kalan hak: ${'♥'.repeat(Math.max(0, remaining))}${'♡'.repeat(Math.max(0, wrongAttempts))}`;
+  }
+
+  function showButtons(check, next, skip) {
+    document.getElementById('btnCheck').classList.toggle('hidden', !check);
+    document.getElementById('btnClear').classList.toggle('hidden', !check);
+    document.getElementById('btnNext').classList.toggle('hidden', !next);
+    document.getElementById('btnSkip').classList.toggle('hidden', !skip);
+  }
+
+  function showResult(ok, title, msg) {
+    const panel = document.getElementById('resultPanel');
+    panel.classList.remove('ok', 'fail');
+    panel.classList.add(ok ? 'ok' : 'fail');
+    const iconSvg = ok
+      ? '<svg style="stroke:#34D399"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>'
+      : '<svg style="stroke:#F87171"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>';
+    document.getElementById('resultTitle').innerHTML = iconSvg + ' ' + title;
+    document.getElementById('resultMsg').textContent = msg;
+    panel.style.transform = 'translateY(12px)';
+    panel.style.opacity = '0';
+    requestAnimationFrame(() => {
+      panel.style.transition = 'all .35s ease';
+      panel.style.transform = 'translateY(0)';
+      panel.style.opacity = '1';
+    });
+  }
+
+  function resetResult() {
+    const panel = document.getElementById('resultPanel');
+    panel.classList.remove('ok', 'fail');
+    document.getElementById('resultTitle').textContent = 'Sonuç bekleniyor';
+    document.getElementById('resultMsg').textContent = 'Grafiği çizdikten sonra "Kontrol Et" butonuna bas.';
+  }
+
+  // ==================== SHAPE CHECKING ====================
+  function checkAnswer() {
+    const q = getQ();
+    if (points.length < 14) {
+      showResult(false, 'Çizim eksik', 'Grafiği daha uzun çizmelisin.');
+      return;
+    }
+
+    const mathPts = points.map(p => toMath(p.x, p.y));
+    const errors = mathPts.map(p => Math.abs(p.y - q.fn(p.x)));
+    const avgError = errors.reduce((a, b) => a + b, 0) / errors.length;
+
+    // Shape-specific checks
+    let shapeOk = true;
+    const n = mathPts.length;
+    const xs = mathPts.map(p => p.x);
+    const xMin = Math.min(...xs), xMax = Math.max(...xs);
+    const goodRange = (xMax - xMin) > (q.domain[1] - q.domain[0]) * 0.4;
+
+    if (q.shapeCheck === 'parabola_up') {
+      const q1y = avg(mathPts.slice(0, Math.floor(n*.25)).map(p=>p.y));
+      const q2y = avg(mathPts.slice(Math.floor(n*.35), Math.floor(n*.65)).map(p=>p.y));
+      const q3y = avg(mathPts.slice(Math.floor(n*.75)).map(p=>p.y));
+      shapeOk = q2y < q1y && q2y < q3y;
+    } else if (q.shapeCheck === 'parabola_down') {
+      const q1y = avg(mathPts.slice(0, Math.floor(n*.25)).map(p=>p.y));
+      const q2y = avg(mathPts.slice(Math.floor(n*.35), Math.floor(n*.65)).map(p=>p.y));
+      const q3y = avg(mathPts.slice(Math.floor(n*.75)).map(p=>p.y));
+      shapeOk = q2y > q1y && q2y > q3y;
+    } else if (q.shapeCheck === 'line_up') {
+      const firstHalf = avg(mathPts.slice(0, Math.floor(n/2)).map(p=>p.y));
+      const secondHalf = avg(mathPts.slice(Math.floor(n/2)).map(p=>p.y));
+      shapeOk = secondHalf > firstHalf;
+    } else if (q.shapeCheck === 'line_down') {
+      const firstHalf = avg(mathPts.slice(0, Math.floor(n/2)).map(p=>p.y));
+      const secondHalf = avg(mathPts.slice(Math.floor(n/2)).map(p=>p.y));
+      shapeOk = secondHalf < firstHalf;
+    } else if (q.shapeCheck === 'v_shape') {
+      // Find minimum y point, check V shape
+      let minIdx = 0;
+      mathPts.forEach((p, i) => { if (p.y < mathPts[minIdx].y) minIdx = i; });
+      const leftPart = mathPts.slice(0, minIdx);
+      const rightPart = mathPts.slice(minIdx);
+      const leftDesc = leftPart.length > 2 && avg(leftPart.slice(0, Math.floor(leftPart.length/2)).map(p=>p.y)) > avg(leftPart.slice(Math.floor(leftPart.length/2)).map(p=>p.y));
+      const rightAsc = rightPart.length > 2 && avg(rightPart.slice(Math.floor(rightPart.length/2)).map(p=>p.y)) > avg(rightPart.slice(0, Math.floor(rightPart.length/2)).map(p=>p.y));
+      shapeOk = leftDesc && rightAsc;
+    } else if (q.shapeCheck === 'cubic') {
+      // Check S shape: left side negative, right side positive (relative to middle)
+      const midY = avg(mathPts.slice(Math.floor(n*.4), Math.floor(n*.6)).map(p=>p.y));
+      const leftY = avg(mathPts.slice(0, Math.floor(n*.25)).map(p=>p.y));
+      const rightY = avg(mathPts.slice(Math.floor(n*.75)).map(p=>p.y));
+      shapeOk = leftY < midY && rightY > midY;
+    }
+
+    const isCorrect = avgError < q.tolerance && shapeOk && goodRange;
+
+    if (isCorrect) {
+      sfxCorrect();
+      answered = true;
+      questionResults[currentQ] = { qIdx: currentQ, status: 'correct', attempts: wrongAttempts + 1 };
+      showResult(true, 'Doğru! ✓', `Harika! Ortalama sapma: ${avgError.toFixed(2)} birim. Grafik şekli doğru!`);
+      hideCorrectCurve();
+      showButtons(false, true, false);
+    } else {
+      sfxWrong();
+      wrongAttempts++;
+      updateAttempts();
+      let hint = '';
+      if (!shapeOk) hint += 'Grafik şekli beklenen forma uymuyor. ';
+      if (!goodRange) hint += 'Çizim çok dar — daha geniş bir aralıkta çiz. ';
+      showResult(false, 'Hatalı çizim', `${hint}Doğru grafik yeşil ile gösterildi. ${wrongAttempts >= 2 ? 'İstersen bu soruyu geçebilirsin.' : `Kalan hak: ${MAX_WRONG - wrongAttempts}`}`);
+      showCorrectCurve();
+
+      if (wrongAttempts >= MAX_WRONG) {
+        answered = true;
+        questionResults[currentQ] = { qIdx: currentQ, status: 'wrong', attempts: wrongAttempts };
+        showButtons(false, true, false);
+      } else if (wrongAttempts >= 2) {
+        showButtons(true, false, true);
+      }
+    }
+    updateProgress();
+  }
+
+  function avg(arr) { return arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : 0; }
+
+  // ==================== NAVIGATION ====================
+  function loadQuestion() {
+    const q = getQ();
+    points = [];
+    wrongAttempts = 0;
+    answered = false;
+
+    document.getElementById('questionLabel').textContent = q.label;
+    document.getElementById('pointCount').textContent = '0 nokta';
+
+    drawGrid();
+    updateCriteria();
+    updateProgress();
+    updateAttempts();
+    resetResult();
+    showButtons(true, false, false);
+  }
+
+  function nextQuestion() {
+    sfxNext();
+    currentQ++;
+    if (currentQ >= QUESTIONS.length) {
+      showAnalysis();
+      return;
+    }
+    loadQuestion();
+  }
+
+  function skipQuestion() {
+    sfxSkip();
+    questionResults[currentQ] = { qIdx: currentQ, status: 'skipped', attempts: wrongAttempts };
+    updateProgress();
+    currentQ++;
+    if (currentQ >= QUESTIONS.length) {
+      showAnalysis();
+      return;
+    }
+    loadQuestion();
+  }
+
+  // ==================== ANALYSIS SCREEN ====================
+  function showAnalysis() {
+    sfxComplete();
+    const overlay = document.getElementById('analysisOverlay');
+    const content = document.getElementById('analysisContent');
+
+    const correct = questionResults.filter(r => r && r.status === 'correct').length;
+    const wrong = questionResults.filter(r => r && r.status === 'wrong').length;
+    const skipped = questionResults.filter(r => r && r.status === 'skipped').length;
+    const total = QUESTIONS.length;
+    const score = Math.round((correct / total) * 100);
+
+    // Find weak topics
+    const weakTopics = new Set();
+    questionResults.forEach((r, i) => {
+      if (r && (r.status === 'wrong' || r.status === 'skipped')) {
+        weakTopics.add(QUESTIONS[i].topic);
+      }
+    });
+
+    let html = '';
+    html += `<h1>📊 Test Sonucu</h1>`;
+    html += `<p class="subtitle">10 soruluk grafik çizim testini tamamladın</p>`;
+
+    // Score
+    html += `<div class="score-section"><div class="score-circle"><span class="num">${score}</span><span class="den">/ 100 puan</span></div></div>`;
+
+    // Stats
+    html += `<div class="stats-row">`;
+    html += `<div class="stat-card stat-green"><div class="val">${correct}</div><div class="label">Doğru</div></div>`;
+    html += `<div class="stat-card stat-red"><div class="val">${wrong}</div><div class="label">Yanlış</div></div>`;
+    html += `<div class="stat-card stat-yellow"><div class="val">${skipped}</div><div class="label">Geçilen</div></div>`;
+    html += `</div>`;
+
+    // Breakdown
+    html += `<div class="breakdown"><h2>📝 Soru Detayları</h2><div class="breakdown-list">`;
+    QUESTIONS.forEach((q, i) => {
+      const r = questionResults[i];
+      const status = r ? r.status : 'skipped';
+      const statusLabel = status === 'correct' ? 'Doğru' : status === 'wrong' ? 'Yanlış' : 'Geçildi';
+      const statusIcon = status === 'correct' ? '✓' : status === 'wrong' ? '✗' : '→';
+      const iconClass = status === 'correct' ? 'ok' : status === 'wrong' ? 'fail' : 'skip';
+      html += `<div class="bq">
+        <div class="bq-icon ${iconClass}">${statusIcon}</div>
+        <div class="bq-info">
+          <div class="bq-fn">${q.label}</div>
+          <div class="bq-topic">${q.topic} — ${q.subtopic}</div>
+        </div>
+        <span class="bq-status ${iconClass}">${statusLabel}${r && r.attempts > 1 ? ` (${r.attempts} deneme)` : ''}</span>
+      </div>`;
+    });
+    html += `</div></div>`;
+
+    // Study recommendations
+    if (weakTopics.size > 0) {
+      html += `<div class="recs"><h2>📚 Çalışman Gereken Konular</h2>`;
+      html += `<p style="font-size:.85rem;color:#D1D9E6;margin-bottom:16px">Aşağıdaki konularda hata yaptın veya soruyu geçtin. Bu kaynaklardan çalışarak kendini geliştirebilirsin:</p>`;
+
+      weakTopics.forEach(topic => {
+        const res = RESOURCES[topic];
+        if (!res) return;
+
+        html += `<div class="rec-card">`;
+        html += `<h3>📖 ${topic}</h3>`;
+        html += `<p style="font-size:.82rem;color:#6a8aaa;margin-bottom:10px"><b>Çalışılması gereken alt konular:</b></p>`;
+        html += `<ul>`;
+        res.topics.forEach(t => { html += `<li><span style="color:#4FC3F7">→</span> ${t}</li>`; });
+        html += `</ul>`;
+
+        html += `<div style="margin-top:14px;padding-top:12px;border-top:1px solid rgba(255,255,255,.06)">`;
+        html += `<p style="font-size:.8rem;font-weight:700;color:#22C55E;margin-bottom:8px">🏫 MEB Kaynakları:</p><ul>`;
+        res.meb.forEach(m => {
+          html += `<li><span style="color:#22C55E">•</span> ${m.link ? `<a href="${m.link}" target="_blank">${m.text}</a>` : m.text}${m.note ? ` <span style="color:#4a6a8a;font-size:.72rem">— ${m.note}</span>` : ''}</li>`;
+        });
+        html += `</ul></div>`;
+
+        html += `<div style="margin-top:10px">`;
+        html += `<p style="font-size:.8rem;font-weight:700;color:#4FC3F7;margin-bottom:8px">🌐 Khan Academy:</p><ul>`;
+        res.khan.forEach(k => {
+          html += `<li><span style="color:#4FC3F7">•</span> <a href="${k.link}" target="_blank">${k.text}</a></li>`;
+        });
+        html += `</ul></div>`;
+
+        html += `<p class="source">Kaynak: MEB 10. Sınıf Matematik Müfredatı & Khan Academy</p>`;
+        html += `</div>`;
+      });
+      html += `</div>`;
+    } else {
+      html += `<div class="rec-card" style="text-align:center;padding:24px"><h3 style="justify-content:center">🎉 Tebrikler!</h3><p style="color:#D1D9E6;font-size:.9rem">Tüm soruları doğru çözdün! Grafik çizim konusunda çok iyisin.</p></div>`;
+    }
+
+    // Restart
+    html += `<div class="restart-row"><button class="btn-restart" id="btnRestart">🔄 Testi Tekrar Çöz</button></div>`;
+
+    content.innerHTML = html;
+    overlay.classList.add('show');
+
+    document.getElementById('btnRestart').addEventListener('click', () => {
+      overlay.classList.remove('show');
+      currentQ = 0;
+      questionResults = [];
+      loadQuestion();
+    });
+  }
+
+  // ==================== EVENTS ====================
+  function getPointerPos(e) {
+    const rect = svg.getBoundingClientRect();
+    return { x: ((e.clientX - rect.left) / rect.width) * W, y: ((e.clientY - rect.top) / rect.height) * H };
+  }
+
+  svg.addEventListener('pointerdown', (e) => {
+    if (answered) return;
+    drawing = true;
+    svg.setPointerCapture(e.pointerId);
+    const p = getPointerPos(e);
+    points.push(p);
+    hideCorrectCurve();
+    resetResult();
+    updateUserPath();
+    document.getElementById('pointCount').textContent = points.length + ' nokta';
+  });
+
+  svg.addEventListener('pointermove', (e) => {
+    if (!drawing || answered) return;
+    const p = getPointerPos(e);
+    const last = points[points.length - 1];
+    if (last && Math.hypot(p.x - last.x, p.y - last.y) > 2) {
+      points.push(p);
+      updateUserPath();
+      document.getElementById('pointCount').textContent = points.length + ' nokta';
+    }
+  });
+
+  svg.addEventListener('pointerup', () => { drawing = false; });
+  svg.addEventListener('pointerleave', () => { drawing = false; });
+
+  document.getElementById('btnClear').addEventListener('click', () => {
+    if (answered) return;
+    points = [];
+    hideCorrectCurve();
+    resetResult();
+    updateUserPath();
+    document.getElementById('pointCount').textContent = '0 nokta';
+  });
+
+  document.getElementById('btnCheck').addEventListener('click', () => {
+    if (answered) return;
+    checkAnswer();
+  });
+
+  document.getElementById('btnNext').addEventListener('click', nextQuestion);
+  document.getElementById('btnSkip').addEventListener('click', skipQuestion);
+
+  // ==================== INIT ====================
+  loadQuestion();
+
+  // Testing hooks
+  window.render_game_to_text = function() {
+    return JSON.stringify({
+      currentQuestion: currentQ,
+      pointCount: points.length,
+      wrongAttempts: wrongAttempts,
+      answered: answered,
+      results: questionResults,
+      totalQuestions: QUESTIONS.length
+    });
+  };
+  window.advanceTime = function() {};
+})();
+</script>
+</body>
+</html>
